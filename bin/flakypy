@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+#-*- mode: python -*-
+
+"""
+Identifies errors in python modules, prompts the user for a resolution,
+and then remembers the resolution whenever it sees an error like that again.
+
+"""
+
+from flaky import main
+main()
