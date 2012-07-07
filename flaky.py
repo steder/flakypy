@@ -46,8 +46,82 @@ def checkPath(filename):
         return []
 
 
+IGNORE, DELETE, REPLACE, CONTINUE = "i", "d", "r", "c"
+
+def prompt():
+    input = raw_input("action (ignore/delete/replace/continue): ")
+    if input:
+        action = input[-1]
+        action = action.lower()
+        if action in (IGNORE, DELETE, REPLACE, CONTINUE):
+            return action
+        else:
+            return None
+    else:
+        return None
+
+
+def updatePath(filename, warnings, warning_db):
+    with open(filename, "r") as infile:
+        contents = infile.readlines()
+    with open("{}.clean".format(filename), "w") as outfile:
+        print "updating file: {}".format(filename)
+        for warning in warnings:
+            print "{}".format(warning)
+            print "source: {}".format(contents[warning.lineno - 1])
+
+            message = str(warning).split(":")[-1]
+
+            replacement = ""
+            if message in warning_db:
+                # get the action from memory
+                action, replacement = warning_db[message]
+            else:
+                # prompt for the action...
+                action = prompt()
+                while not action:
+                    action = prompt()
+
+                if action == REPLACE:
+                    replacement = raw_input("replacement: ")
+
+                # and memorize the action:
+                warning_db[message] = (action, replacement)
+
+            # perform the action:
+            if action == REPLACE:
+                line = contents[warning.lineno - 1]
+                indent = len(line) - len(line.lstrip())
+                contents[warning.lineno - 1] = "{}{}\n".format(
+                    " " * indent,
+                    replacement
+                )
+            elif action == IGNORE:
+                pass
+            elif action == DELETE:
+                contents[warning.lineno - 1] = "\n"
+            elif action == CONTINUE:
+                pass
+
+        # write the modified file out:
+        # TODO: overwrite original file
+        for line in contents:
+            outfile.write(line)
+
+    print warning_db
+
+
 def main():
+    """
+    process a file, directory, or stdin with pyflakes
+
+    Given a file:
+     - check with pyflakes
+     - run update path if there are warnings until that file is clean
+
+    """
     warnings = []
+    warning_db = {}
     args = sys.argv[1:]
 
     if args:
@@ -59,15 +133,20 @@ def main():
                             ws = checkPath(os.path.join(dirpath, filename))
                             warnings.extend(ws)
             else:
-                warnings.extend(checkPath(arg))
+                ws = checkPath(arg)
+                while ws:
+                    ws = updatePath(arg, ws, warning_db)
     else:
+        # if it's stdin all we can do is print out warnings:
         warnings.extend(check(sys.stdin.read(), '<stdin>'))
-
-    for warning in warnings:
-        print warning
+        for warning in warnings:
+            print warning
 
     raise SystemExit(warnings > 0)
 
+def g():
+    x = 0
+    return
 
 def f():
     x = 0
