@@ -5,12 +5,33 @@ Uses pyflakes to process files and look for pyflakes validation errors.
 """
 
 import _ast
+import atexit
+import json
 import os
 import sys
 
 
 from pyflakes.scripts import pyflakes
 from pyflakes import checker
+
+
+MEMORY = {}
+
+
+def save_memory():
+    if MEMORY:
+        with open("memory.json", "w") as memfile:
+            json.dump(MEMORY, memfile)
+
+atexit.register(save_memory)
+
+
+def load_memory():
+    global MEMORY
+    if os.path.exists("memory.json") and os.stat("memory.json").st_size > 0:
+        with open("memory.json", "r") as memfile:
+            MEMORY = json.load(memfile)
+
 
 
 def check(codeString, filename):
@@ -110,6 +131,11 @@ def updatePath(filename, warnings, warning_db):
 
     print warning_db
 
+    #TODO: when we're done debugging
+    # check the original file for any further warnings
+    #return checkPath(filename)
+    return []
+
 
 def main():
     """
@@ -120,8 +146,9 @@ def main():
      - run update path if there are warnings until that file is clean
 
     """
+    load_memory()
+
     warnings = []
-    warning_db = {}
     args = sys.argv[1:]
 
     if args:
@@ -135,7 +162,7 @@ def main():
             else:
                 ws = checkPath(arg)
                 while ws:
-                    ws = updatePath(arg, ws, warning_db)
+                    ws = updatePath(arg, ws, MEMORY)
     else:
         # if it's stdin all we can do is print out warnings:
         warnings.extend(check(sys.stdin.read(), '<stdin>'))
