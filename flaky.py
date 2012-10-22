@@ -67,14 +67,14 @@ def checkPath(filename):
         return []
 
 
-IGNORE, DELETE, REPLACE, CONTINUE = "i", "d", "r", "c"
+IGNORE, DELETE, REPLACE, CONTINUE, ADD_IMPORT = "i", "d", "r", "c", "a"
 
 def prompt():
-    input = raw_input("action (ignore/delete/replace/continue): ")
+    input = raw_input("action (ignore/delete/replace/continue/add_import): ")
     if input:
         action = input[-1]
         action = action.lower()
-        if action in (IGNORE, DELETE, REPLACE, CONTINUE):
+        if action in (IGNORE, DELETE, REPLACE, CONTINUE, ADD_IMPORT):
             return action
         else:
             return None
@@ -82,10 +82,19 @@ def prompt():
         return None
 
 
-def updatePath(filename, warnings, warning_db):
+def updatePath(filename, warnings, warning_db, safe=True):
     with open(filename, "r") as infile:
         contents = infile.readlines()
-    with open("{}.clean".format(filename), "w") as outfile:
+
+    name_format = "{}"
+    if safe:
+        name_format = "{}.clean"
+
+    for index, line in enumerate(contents):
+        if 'import' in line:
+            last_import_index = index
+
+    with open(name_format.format(filename), "w") as outfile:
         print "updating file: {}".format(filename)
         for warning in warnings:
             print "{}".format(warning)
@@ -106,6 +115,9 @@ def updatePath(filename, warnings, warning_db):
                 if action == REPLACE:
                     replacement = raw_input("replacement: ")
 
+                if action == ADD_IMPORT:
+                    replacement = raw_input("import: ")
+
                 # and memorize the action:
                 warning_db[message] = (action, replacement)
 
@@ -117,8 +129,10 @@ def updatePath(filename, warnings, warning_db):
                     " " * indent,
                     replacement
                 )
+            elif action == ADD_IMPORT:
+                contents.insert(last_import_index, replacement)
             elif action == IGNORE:
-                pass
+                warning_db[message] = (action, '')
             elif action == DELETE:
                 contents[warning.lineno - 1] = "\n"
             elif action == CONTINUE:
@@ -178,5 +192,3 @@ def g():
 def f():
     x = 0
     return
-
-
